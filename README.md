@@ -78,6 +78,38 @@ local ok, result = reaper.DataSource_ListSheets("/path/to/book.xlsx")
 -- result: { "sheets": [{ "name": "Sheet1", "visible": true }] }
 ```
 
+### Handle-based querying
+
+For incremental access — previews, single columns, reactive UIs — open a
+source once and query it without materializing the whole file. Sheets
+load lazily on first access and stay cached on the handle.
+
+```lua
+local src, err = reaper.DataSource_Open("/path/to/book.xlsx")
+if not src then
+  reaper.ShowConsoleMsg("open failed: " .. err .. "\n")
+  return
+end
+local ok, info = reaper.DataSource_GetInfo(src)      -- names/visibility, no cell data
+local ok, cfg  = reaper.DataSource_GetSheetConfig(src, "Sheet1")  -- dims + hidden_rows
+local ok, rows = reaper.DataSource_GetRows(src, "Sheet1", 1, 20)  -- JSON array of arrays
+local ok, cell = reaper.DataSource_GetCell(src, "Sheet1", 2, 3)   -- plain string
+reaper.DataSource_Close(src)
+```
+
+- Row/column arguments are 1-based and absolute, aligned with
+  `hidden_rows`. `row_count <= 0` in `GetRows` means all remaining rows;
+  cells beyond a sheet's extent read as `""`.
+- An empty `sheet_name` selects the first sheet (convenient for CSV,
+  whose one sheet is named after the file).
+- Handles are opaque and validated on every call — a closed or bogus
+  handle returns `(false, message)`, never a crash. They are **not**
+  garbage-collected: call `DataSource_Close` when done (or
+  `DataSource_CloseAll()` as an escape hatch; it returns the count
+  closed).
+- `reaper.DataSource_GetVersion()` returns the extension version, for
+  capability checks.
+
 ### Result size
 
 Results are returned through REAPER's `NeedBig` output-buffer convention

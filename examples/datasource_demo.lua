@@ -24,3 +24,15 @@ end
 
 reaper.ShowConsoleMsg(("parsed %d bytes of JSON\n"):format(#result))
 reaper.ShowConsoleMsg(result:sub(1, 2000) .. "\n")
+
+-- Handle-based querying: open once, read slices without re-parsing.
+local src, err = reaper.DataSource_Open(path)
+if not src then
+  reaper.ShowConsoleMsg("DataSource_Open error: " .. err .. "\n")
+  return
+end
+local _, info = reaper.DataSource_GetInfo(src)
+reaper.ShowConsoleMsg("info: " .. info .. "\n")
+local _, rows = reaper.DataSource_GetRows(src, "", 1, 5)
+reaper.ShowConsoleMsg("first rows of first sheet: " .. rows .. "\n")
+reaper.DataSource_Close(src)

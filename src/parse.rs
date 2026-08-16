@@ -79,7 +79,7 @@ pub fn list_sheets(path: &str) -> Result<Value, String> {
     Ok(json!({ "sheets": sheets }))
 }
 
-fn is_delimited(file: &Path) -> bool {
+pub fn is_delimited(file: &Path) -> bool {
     file.extension()
         .and_then(|extension| extension.to_str())
         .is_some_and(|extension| {
@@ -120,41 +120,55 @@ fn read_excel(path: &str, options: &ParseOptions) -> Result<Vec<SheetData>, Stri
 
     let mut sheets = Vec::with_capacity(selected.len());
     for name in &selected {
-        let range = workbook
-            .worksheet_range(name)
-            .map_err(|error| format!("could not read sheet {name:?}: {error}"))?;
-        let (row_count, column_count) = match range.end() {
-            Some((row, column)) => (row as usize + 1, column as usize + 1),
-            None => (0, 0),
-        };
-        let mut data = Vec::with_capacity(row_count);
-        for row in 0..row_count {
-            let mut cells = Vec::with_capacity(column_count);
-            for column in 0..column_count {
-                let cell = range.get_value((row as u32, column as u32));
-                cells.push(cell.map(cell_to_string).unwrap_or_default());
-            }
-            data.push(cells);
-        }
-        sheets.push(SheetData {
-            name: name.clone(),
-            data,
-            hidden_rows: hidden.get(name.as_str()).cloned().unwrap_or_default(),
-        });
+        sheets.push(load_sheet(&mut workbook, name, &hidden)?);
     }
     Ok(sheets)
 }
 
+/// Reads one worksheet from an open workbook into a dense A1-anchored
+/// rectangle of string cells.
+pub fn load_sheet(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    name: &str,
+    hidden: &std::collections::HashMap<String, Vec<u32>>,
+) -> Result<SheetData, String> {
+    let range = workbook
+        .worksheet_range(name)
+        .map_err(|error| format!("could not read sheet {name:?}: {error}"))?;
+    let (row_count, column_count) = match range.end() {
+        Some((row, column)) => (row as usize + 1, column as usize + 1),
+        None => (0, 0),
+    };
+    let mut data = Vec::with_capacity(row_count);
+    for row in 0..row_count {
+        let mut cells = Vec::with_capacity(column_count);
+        for column in 0..column_count {
+            let cell = range.get_value((row as u32, column as u32));
+            cells.push(cell.map(cell_to_string).unwrap_or_default());
+        }
+        data.push(cells);
+    }
+    Ok(SheetData {
+        name: name.to_owned(),
+        data,
+        hidden_rows: hidden.get(name).cloned().unwrap_or_default(),
+    })
+}
+
 fn sheet_json(sheet: &SheetData) -> Value {
     json!({
-        "config": {
-            "name": sheet.name,
-            "column_count": sheet.data.first().map(Vec::len).unwrap_or(0),
-            "row_count": sheet.data.len(),
-            "hidden_rows": sheet.hidden_rows,
-            "bold_rows": [],
-        },
+        "config": sheet_config_json(sheet),
         "data": sheet.data,
+    })
+}
+
+pub fn sheet_config_json(sheet: &SheetData) -> Value {
+    json!({
+        "name": sheet.name,
+        "column_count": sheet.data.first().map(Vec::len).unwrap_or(0),
+        "row_count": sheet.data.len(),
+        "hidden_rows": sheet.hidden_rows,
+        "bold_rows": [],
     })
 }
 

@@ -1,4 +1,5 @@
 use crate::parse::{self, ParseOptions};
+use crate::source;
 use std::ffi::{c_char, c_int, c_void, CStr};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::OnceLock;
@@ -26,6 +27,34 @@ unsafe fn args<'a>(arglist: *mut *mut c_void, count: c_int) -> &'a [*mut c_void]
     } else {
         std::slice::from_raw_parts(arglist, count as usize)
     }
+}
+
+/// Integer arguments arrive through the vararg ABI as the pointer value
+/// itself, not a pointer to the integer.
+fn int_arg(args: &[*mut c_void], index: usize) -> c_int {
+    args.get(index)
+        .copied()
+        .map(|value| value as isize as c_int)
+        .unwrap_or(0)
+}
+
+/// Data source handles are registry keys packed into the pointer value;
+/// they are looked up, never dereferenced.
+fn source_arg(args: &[*mut c_void], index: usize) -> Result<u64, String> {
+    args.get(index)
+        .copied()
+        .filter(|ptr| !ptr.is_null())
+        .map(|ptr| ptr as u64)
+        .ok_or_else(|| "source is not an open data source handle".to_owned())
+}
+
+fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown panic");
+    format!("internal panic: {detail}")
 }
 
 /// An output-string parameter pair (char* buffer + int size) as received
@@ -120,6 +149,90 @@ unsafe fn respond(
     outcome as isize as *mut c_void
 }
 
+pub unsafe extern "C" fn open_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
+    let args = args(arglist, count);
+    let mut error_out = OutBuffer::from_args(args, 1);
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let path = string_arg(args, 0)?;
+        source::open(path)
+    }))
+    .unwrap_or_else(|payload| Err(panic_message(payload)));
+    match result {
+        Ok(handle) => {
+            error_out.write("");
+            handle as usize as *mut c_void
+        }
+        Err(error) => {
+            error_out.write(&error);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+pub unsafe extern "C" fn close_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
+    let args = args(arglist, count);
+    let closed = source_arg(args, 0).map(source::close).unwrap_or(false);
+    closed as isize as *mut c_void
+}
+
+pub unsafe extern "C" fn close_all_vararg(
+    _arglist: *mut *mut c_void,
+    _count: c_int,
+) -> *mut c_void {
+    source::close_all() as isize as *mut c_void
+}
+
+pub unsafe extern "C" fn get_info_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 1), || {
+        source::info_json(source_arg(args, 0)?)
+    })
+}
+
+pub unsafe extern "C" fn get_sheet_config_vararg(
+    arglist: *mut *mut c_void,
+    count: c_int,
+) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 2), || {
+        source::sheet_config_json(source_arg(args, 0)?, string_arg(args, 1).unwrap_or(""))
+    })
+}
+
+pub unsafe extern "C" fn get_rows_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 4), || {
+        source::rows_json(
+            source_arg(args, 0)?,
+            string_arg(args, 1).unwrap_or(""),
+            int_arg(args, 2),
+            int_arg(args, 3),
+        )
+    })
+}
+
+pub unsafe extern "C" fn get_cell_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 4), || {
+        source::cell(
+            source_arg(args, 0)?,
+            string_arg(args, 1).unwrap_or(""),
+            int_arg(args, 2),
+            int_arg(args, 3),
+        )
+    })
+}
+
+pub unsafe extern "C" fn get_version_vararg(
+    arglist: *mut *mut c_void,
+    count: c_int,
+) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 0), || {
+        Ok(env!("CARGO_PKG_VERSION").to_owned())
+    })
+}
+
 pub unsafe extern "C" fn parse_vararg(arglist: *mut *mut c_void, count: c_int) -> *mut c_void {
     let args = args(arglist, count);
     respond(OutBuffer::from_args(args, 2), || {
@@ -159,6 +272,106 @@ pub extern "C" fn parse_native(
         result_out_sz as isize as *mut c_void,
     ];
     unsafe { !parse_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
+}
+
+pub extern "C" fn open_native(
+    file_path: *const c_char,
+    error_out: *mut c_char,
+    error_out_sz: c_int,
+) -> *mut c_void {
+    let args = [
+        file_path as *mut c_void,
+        error_out as *mut c_void,
+        error_out_sz as isize as *mut c_void,
+    ];
+    unsafe { open_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int) }
+}
+
+pub extern "C" fn close_native(source: *mut c_void) -> bool {
+    let args = [source];
+    unsafe { !close_vararg(args.as_ptr() as *mut *mut c_void, 1).is_null() }
+}
+
+pub extern "C" fn close_all_native() -> c_int {
+    unsafe { close_all_vararg(std::ptr::null_mut(), 0) as isize as c_int }
+}
+
+pub extern "C" fn get_info_native(
+    source: *mut c_void,
+    result_out: *mut c_char,
+    result_out_sz: c_int,
+) -> bool {
+    let args = [
+        source,
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe { !get_info_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
+}
+
+pub extern "C" fn get_sheet_config_native(
+    source: *mut c_void,
+    sheet_name: *const c_char,
+    result_out: *mut c_char,
+    result_out_sz: c_int,
+) -> bool {
+    let args = [
+        source,
+        sheet_name as *mut c_void,
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe {
+        !get_sheet_config_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null()
+    }
+}
+
+pub extern "C" fn get_rows_native(
+    source: *mut c_void,
+    sheet_name: *const c_char,
+    start_row: c_int,
+    row_count: c_int,
+    result_out: *mut c_char,
+    result_out_sz: c_int,
+) -> bool {
+    let args = [
+        source,
+        sheet_name as *mut c_void,
+        start_row as isize as *mut c_void,
+        row_count as isize as *mut c_void,
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe { !get_rows_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
+}
+
+pub extern "C" fn get_cell_native(
+    source: *mut c_void,
+    sheet_name: *const c_char,
+    row: c_int,
+    column: c_int,
+    result_out: *mut c_char,
+    result_out_sz: c_int,
+) -> bool {
+    let args = [
+        source,
+        sheet_name as *mut c_void,
+        row as isize as *mut c_void,
+        column as isize as *mut c_void,
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe { !get_cell_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
+}
+
+pub extern "C" fn get_version_native(result_out: *mut c_char, result_out_sz: c_int) -> bool {
+    let args = [
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe {
+        !get_version_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null()
+    }
 }
 
 pub extern "C" fn list_sheets_native(
