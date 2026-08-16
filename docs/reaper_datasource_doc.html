@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reaper-datasource — API Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #111827;         /* gray-900 */
+    --bg-deep: #0b101c;
+    --panel: #1f2937;      /* gray-800 */
+    --border: #374151;     /* gray-700 */
+    --text: #9ca3af;       /* gray-400 */
+    --text-bright: #d1d5db;/* gray-300 */
+    --heading: #ffffff;
+    --accent: #d946ef;     /* fuchsia-500 */
+    --accent-strong: #c026d3; /* fuchsia-600 */
+    --good: #34d399;       /* emerald-400 */
+  }
+  * { box-sizing: border-box; }
+  html { scrollbar-gutter: stable; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Karla, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  a { color: var(--heading); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem 5rem; }
+  header.site {
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 0 1.5rem;
+    margin-bottom: 2rem;
+  }
+  header.site h1 {
+    color: var(--heading);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    letter-spacing: -0.02em;
+  }
+  header.site h1 .accent { color: var(--accent); }
+  header.site p.tagline { margin: 0; color: var(--text); }
+  .chips { margin-top: 1rem; }
+  .chip {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    margin: 0 0.35rem 0.35rem 0;
+    font-size: 0.75rem;
+    border: 1px solid var(--accent);
+    border-radius: 0.375rem;
+    color: var(--accent);
+    transition: background-color 0.2s, color 0.2s;
+  }
+  a.chip:hover { background: var(--accent); color: #fff; }
+  nav.toc {
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+  }
+  nav.toc strong { color: var(--text-bright); display: block; margin-bottom: 0.4rem; }
+  nav.toc a { display: inline-block; margin: 0.1rem 0.9rem 0.1rem 0; color: var(--text-bright); }
+  nav.toc a:hover { color: var(--accent); }
+  h2 {
+    color: var(--heading);
+    font-size: 1.4rem;
+    margin: 3rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+  h3 { color: var(--text-bright); font-size: 1.05rem; margin: 2rem 0 0.5rem; }
+  p, ul { margin: 0.6rem 0; }
+  li { margin: 0.25rem 0; }
+  strong { color: var(--text-bright); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    padding: 0.08rem 0.35rem;
+    color: var(--text-bright);
+  }
+  pre {
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: none; border: none; padding: 0; color: var(--text-bright); }
+  .fn {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1.1rem 1.25rem 0.9rem;
+    margin: 1.25rem 0;
+    background: rgba(31, 41, 55, 0.35);
+  }
+  .fn h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+  .fn h3 code {
+    background: none; border: none; padding: 0;
+    font-size: 0.95rem; color: var(--heading);
+  }
+  .fn h3 code .name { color: var(--accent); font-weight: 700; }
+  .fn h3 code .ret { color: var(--good); }
+  .fn p { font-size: 0.95rem; }
+  .fn table { border-collapse: collapse; font-size: 0.875rem; margin: 0.6rem 0; }
+  .fn td { padding: 0.15rem 1rem 0.15rem 0; vertical-align: top; }
+  .fn td:first-child { font-family: ui-monospace, Menlo, monospace; color: var(--text-bright); white-space: nowrap; }
+  .note {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 1rem;
+    margin: 1rem 0;
+    background: rgba(217, 70, 239, 0.06);
+    font-size: 0.92rem;
+  }
+  footer.site {
+    margin-top: 4rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="site">
+  <h1>reaper-<span class="accent">datasource</span></h1>
+  <p class="tagline">Native tabular-data parsing for REAPER ReaScripts — spreadsheets and CSV, no backend required.</p>
+  <div class="chips">
+    <a class="chip" href="https://github.com/TeamAudio/reaper-datasource">GitHub</a>
+    <a class="chip" href="https://techaud.io">Tech Audio</a>
+    <span class="chip">v0.1.0</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <a href="#overview">Overview</a>
+  <a href="#conventions">Conventions</a>
+  <a href="#blob">One-shot parsing</a>
+  <a href="#handles">Handle-based querying</a>
+  <a href="#shapes">JSON shapes</a>
+</nav>
+
+<h2 id="overview">Overview</h2>
+<p>reaper-datasource is a REAPER extension that reads tabular files and hands
+the results to Lua, EEL, or Python scripts as ReaScript API functions in the
+<code>reaper</code> namespace. All calls are synchronous — no job queues, no
+polling, no external processes.</p>
+<p><strong>Supported formats:</strong> <code>.xlsx</code>, <code>.xlsm</code>,
+<code>.xlsb</code>, <code>.xls</code>, <code>.ods</code>, <code>.csv</code>,
+<code>.tsv</code>. Everything is presented as sheets of rows of string cells;
+a delimited file is a workbook with a single sheet named after the file. CSV
+delimiters (comma, semicolon, tab) are sniffed from the first line and a
+UTF-8 byte-order mark is stripped.</p>
+<pre><code>if not reaper.DataSource_Parse then
+  reaper.ShowConsoleMsg("reaper-datasource is not installed\n")
+  return
+end
+
+local ok, result = reaper.DataSource_Parse("/path/to/book.xlsx", "")
+if not ok then
+  reaper.ShowConsoleMsg("parse failed: " .. result .. "\n")
+  return
+end
+-- result is a JSON string; decode with your JSON library of choice</code></pre>
+
+<h2 id="conventions">Conventions</h2>
+<ul>
+  <li><strong>Return style.</strong> Most functions return a boolean and a
+  string: <code>local ok, result = ...</code>. On success the string holds the
+  result (usually JSON); on failure it holds an error message.</li>
+  <li><strong>Result size is unbounded.</strong> Results flow through REAPER's
+  buffer-growth mechanism, so multi-megabyte JSON returns work fine from
+  ReaScript.</li>
+  <li><strong>Cells are strings.</strong> Empty cells are <code>""</code>.
+  Integral numbers render without a decimal point (<code>"42"</code>, not
+  <code>"42.0"</code>); booleans are <code>"TRUE"</code>/<code>"FALSE"</code>;
+  dates are formatted <code>YYYY-MM-DD HH:MM:SS</code>.</li>
+  <li><strong>Rows are absolute.</strong> Spreadsheet data is anchored at cell
+  A1, so a row's index is its sheet row number, and the 1-based
+  <code>hidden_rows</code> list aligns with <code>data</code>. Hidden rows are
+  read from <code>.xlsx</code>/<code>.xlsm</code> worksheets; other formats
+  report none.</li>
+</ul>
+
+<h2 id="blob">One-shot parsing</h2>
+<p>Parse a whole file (or selected sheets) in a single call. Best for bulk
+imports where the script wants everything at once.</p>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string result</span> = reaper.<span class="name">DataSource_Parse</span>(file_path, options_json)</code></h3>
+  <p>Parses a tabular file into the <a href="#shapes">workbook JSON shape</a>.</p>
+  <table>
+    <tr><td>file_path</td><td>Path to the file to parse.</td></tr>
+    <tr><td>options_json</td><td>Optional JSON object. Keys: <code>sheets</code>
+    — array of sheet names to parse (default: all sheets). Pass
+    <code>""</code> for defaults.</td></tr>
+  </table>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string result</span> = reaper.<span class="name">DataSource_ListSheets</span>(file_path)</code></h3>
+  <p>Sheet names and visibility without reading cell data:
+  <code>{"sheets":[{"name":"Sheet1","visible":true}]}</code>.</p>
+</div>
+
+<h2 id="handles">Handle-based querying</h2>
+<p>Open a source once, then query it incrementally — previews, single cells,
+row ranges — without materializing the whole file. Sheets load lazily on
+first access and stay cached on the handle.</p>
+<pre><code>local src, err = reaper.DataSource_Open("/path/to/book.xlsx")
+if not src then return end
+local ok, rows = reaper.DataSource_GetRows(src, "Sheet1", 1, 20)
+reaper.DataSource_Close(src)</code></pre>
+<div class="note">Handles are opaque and validated on every call — a closed or
+invalid handle returns <code>(false, message)</code>, never a crash. They are
+<strong>not</strong> garbage-collected: call <code>DataSource_Close</code>
+when done.</div>
+
+<div class="fn">
+  <h3><code><span class="ret">DataSource src, string error</span> = reaper.<span class="name">DataSource_Open</span>(file_path)</code></h3>
+  <p>Opens a tabular file for querying. Returns <code>nil</code> and an error
+  message on failure.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean closed</span> = reaper.<span class="name">DataSource_Close</span>(src)</code></h3>
+  <p>Closes an open source and frees its cached sheets. Returns
+  <code>false</code> if the handle was not open.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">integer count</span> = reaper.<span class="name">DataSource_CloseAll</span>()</code></h3>
+  <p>Closes every open source; returns how many were closed. Useful in error
+  handlers and at script shutdown.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string result</span> = reaper.<span class="name">DataSource_GetInfo</span>(src)</code></h3>
+  <p>File name, file type, and per-sheet name/visibility as JSON, without
+  reading cell data.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string result</span> = reaper.<span class="name">DataSource_GetSheetConfig</span>(src, sheet_name)</code></h3>
+  <p>One sheet's dimensions and hidden rows — the <code>config</code> object
+  from the <a href="#shapes">workbook shape</a>.</p>
+  <table>
+    <tr><td>sheet_name</td><td><code>""</code> selects the first sheet.</td></tr>
+  </table>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string result</span> = reaper.<span class="name">DataSource_GetRows</span>(src, sheet_name, start_row, row_count)</code></h3>
+  <p>A slice of rows as a JSON array of arrays.</p>
+  <table>
+    <tr><td>sheet_name</td><td><code>""</code> selects the first sheet.</td></tr>
+    <tr><td>start_row</td><td>1-based absolute sheet row.</td></tr>
+    <tr><td>row_count</td><td><code>&lt;= 0</code> means all remaining rows.
+    Rows beyond the sheet yield <code>[]</code>.</td></tr>
+  </table>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string value</span> = reaper.<span class="name">DataSource_GetCell</span>(src, sheet_name, row, column)</code></h3>
+  <p>A single cell's string value (1-based row and column). Cells beyond the
+  sheet's extent read as <code>""</code>, like unset cells in a
+  spreadsheet.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string version</span> = reaper.<span class="name">DataSource_GetVersion</span>()</code></h3>
+  <p>The extension version, for capability checks.</p>
+</div>
+
+<div class="fn">
+  <h3><code><span class="ret">boolean ok, string path</span> = reaper.<span class="name">DataSource_OpenDocs</span>()</code></h3>
+  <p>Opens this documentation in the default browser — the bundled file when
+  installed via ReaPack, the project page otherwise — and returns the
+  location opened.</p>
+</div>
+
+<h2 id="shapes">JSON shapes</h2>
+<p><code>DataSource_Parse</code> returns a workbook object. The same
+<code>config</code> vocabulary appears in <code>GetSheetConfig</code>, and
+<code>GetRows</code> returns bare <code>data</code> slices.</p>
+<pre><code>{
+  "config": { "file_type": "excel", "file_name": "book.xlsx", "sheets": 2 },
+  "sheets": [
+    {
+      "config": {
+        "name": "Sheet1",
+        "column_count": 3,
+        "row_count": 10,
+        "hidden_rows": [4, 7],
+        "bold_rows": []
+      },
+      "data": [["a", "b", "c"], ["", "1", "2.5"]]
+    }
+  ]
+}</code></pre>
+<p><code>file_type</code> is <code>"excel"</code> for spreadsheet formats and
+<code>"csv"</code> for delimited files. Delimited files always produce exactly
+one sheet, named after the file, with no hidden rows.</p>
+
+<footer class="site">
+  <p>reaper-datasource is made by
+  <a href="https://techaud.io">Tech Audio</a> ·
+  <a href="https://github.com/TeamAudio/reaper-datasource">source &amp; issues on GitHub</a></p>
+</footer>
+
+</div>
+</body>
+</html>

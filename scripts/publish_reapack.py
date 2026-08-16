@@ -27,11 +27,35 @@ ARTIFACTS = {
 
 PACKAGE_FILENAME = "reaper-datasource.ext"
 PACKAGE_DESCRIPTION = "reaper-datasource (Excel/CSV parsing API for ReaScripts)"
+
+DOC_FILE = PROJECT_DIR / "docs" / "reaper_datasource_doc.html"
+
+# (platform or None, install target, release asset name)
 PACKAGE_PROVIDES = [
-    ("win64", "reaper_datasource.dll"),
-    ("linux64", "reaper_datasource.so"),
-    ("darwin-arm64", "reaper_datasource.dylib"),
+    ("win64", "reaper_datasource.dll", "reaper_datasource.dll"),
+    ("linux64", "reaper_datasource.so", "reaper_datasource.so"),
+    ("darwin-arm64", "reaper_datasource.dylib", "reaper_datasource.dylib"),
+    (None, "Data/reaper_datasource_doc.html", "reaper_datasource_doc.html"),
 ]
+
+PACKAGE_LINKS = [
+    "GitHub https://github.com/TeamAudio/reaper-datasource",
+    "Tech Audio https://techaud.io",
+]
+
+PACKAGE_ABOUT = """\
+# reaper-datasource
+
+Native tabular-data parsing for REAPER ReaScripts — spreadsheets and CSV,
+no backend required. Functions appear in the `reaper` namespace; all calls
+are synchronous and return JSON strings.
+
+- Parse whole workbooks (.xlsx/.xlsm/.xlsb/.xls/.ods/.csv/.tsv) in one call
+- Or open a handle and query sheets, row ranges, and cells incrementally
+- Hidden-row detection, delimiter sniffing, unbounded result sizes
+
+After installing, run `reaper.DataSource_OpenDocs()` from any script to
+open the bundled API reference in your browser."""
 
 
 class PublishError(RuntimeError):
@@ -117,6 +141,11 @@ def stage_release_assets(artifacts: Path, destination: Path) -> list[Path]:
         output = destination / filename
         shutil.copy2(artifacts / artifact / filename, output)
         assets.append(output)
+    if not DOC_FILE.is_file():
+        raise PublishError(f"missing documentation file: {DOC_FILE}")
+    doc_asset = destination / "reaper_datasource_doc.html"
+    shutil.copy2(DOC_FILE, doc_asset)
+    assets.append(doc_asset)
     return assets
 
 
@@ -131,12 +160,17 @@ def stage_package(reascripts: Path, version: str, changelog: str, tag: str) -> N
         f"@description {PACKAGE_DESCRIPTION}",
         f"@version {version}",
         "@author Tech Audio",
+        *(f"@link {link}" for link in PACKAGE_LINKS),
+        "@about",
+        *(f"  {line}" if line else "" for line in PACKAGE_ABOUT.splitlines()),
         "@changelog",
         f"  {changelog}",
         "@provides",
         *(
-            f"  [{platform}] {filename} {release_asset_url(tag, filename)}"
-            for platform, filename in PACKAGE_PROVIDES
+            f"  [{platform}] {target} {release_asset_url(tag, asset)}"
+            if platform
+            else f"  {target} {release_asset_url(tag, asset)}"
+            for platform, target, asset in PACKAGE_PROVIDES
         ),
         "",
     ]

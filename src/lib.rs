@@ -1,5 +1,6 @@
 mod api;
 mod delimited;
+mod docs;
 mod hidden;
 mod parse;
 mod source;
@@ -95,6 +96,15 @@ fn plugin_main(context: PluginContext) -> Result<(), Box<dyn Error>> {
             "DataSource*,const char*,int,int,char*,int",
             "source,sheet_name,row,column,resultOutNeedBig,resultOutNeedBig_sz",
             "One cell's string value (1-based row and column; \"\" beyond the sheet's extent). An empty sheet_name selects the first sheet. Returns false with an error message in result on failure.",
+        )?;
+        session.plugin_register_add_api_and_def(
+            "DataSource_OpenDocs",
+            api::open_docs_native as *mut _,
+            api::open_docs_vararg,
+            "bool",
+            "char*,int",
+            "pathOutNeedBig,pathOutNeedBig_sz",
+            "Opens the API documentation in the default browser (the bundled file when installed, the project page otherwise) and returns the location opened. Returns false with an error message in path on failure.",
         )?;
         session.plugin_register_add_api_and_def(
             "DataSource_GetVersion",

@@ -109,6 +109,9 @@ reaper.DataSource_Close(src)
   closed).
 - `reaper.DataSource_GetVersion()` returns the extension version, for
   capability checks.
+- `reaper.DataSource_OpenDocs()` opens the bundled API reference
+  (`Data/reaper_datasource_doc.html`, installed by ReaPack) in the default
+  browser, falling back to the project page.
 
 ### Result size
 

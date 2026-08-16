@@ -10,6 +10,10 @@ pub fn init(low: reaper_low::Reaper) {
     let _ = LOW.set(low);
 }
 
+pub(crate) fn low() -> Option<&'static reaper_low::Reaper> {
+    LOW.get()
+}
+
 unsafe fn string_arg(args: &[*mut c_void], index: usize) -> Result<&str, String> {
     let ptr = args
         .get(index)
@@ -223,6 +227,14 @@ pub unsafe extern "C" fn get_cell_vararg(arglist: *mut *mut c_void, count: c_int
     })
 }
 
+pub unsafe extern "C" fn open_docs_vararg(
+    arglist: *mut *mut c_void,
+    count: c_int,
+) -> *mut c_void {
+    let args = args(arglist, count);
+    respond(OutBuffer::from_args(args, 0), crate::docs::open)
+}
+
 pub unsafe extern "C" fn get_version_vararg(
     arglist: *mut *mut c_void,
     count: c_int,
@@ -362,6 +374,14 @@ pub extern "C" fn get_cell_native(
         result_out_sz as isize as *mut c_void,
     ];
     unsafe { !get_cell_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
+}
+
+pub extern "C" fn open_docs_native(result_out: *mut c_char, result_out_sz: c_int) -> bool {
+    let args = [
+        result_out as *mut c_void,
+        result_out_sz as isize as *mut c_void,
+    ];
+    unsafe { !open_docs_vararg(args.as_ptr() as *mut *mut c_void, args.len() as c_int).is_null() }
 }
 
 pub extern "C" fn get_version_native(result_out: *mut c_char, result_out_sz: c_int) -> bool {
