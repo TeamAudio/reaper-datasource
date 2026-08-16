@@ -1,0 +1,47 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: reaper-datasource-windows-x86_64
+            built: target/release/reaper_datasource.dll
+            staged: reaper_datasource.dll
+          - os: ubuntu-24.04
+            artifact: reaper-datasource-linux-x86_64
+            built: target/release/libreaper_datasource.so
+            staged: reaper_datasource.so
+          - os: macos-14
+            artifact: reaper-datasource-macos-arm64
+            built: target/release/libreaper_datasource.dylib
+            staged: reaper_datasource.dylib
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Test
+        run: cargo test --locked
+      - name: Build
+        run: cargo build --release --locked
+      - name: Stage artifact
+        shell: bash
+        run: |
+          mkdir stage
+          cp "${{ matrix.built }}" "stage/${{ matrix.staged }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: stage/${{ matrix.staged }}
