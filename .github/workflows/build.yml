@@ -24,11 +24,14 @@ jobs:
             artifact: reaper-datasource-linux-x86_64
             built: target/release/libreaper_datasource.so
             staged: reaper_datasource.so
-          - os: macos-14
+          - os: macos-15
             artifact: reaper-datasource-macos-arm64
             built: target/release/libreaper_datasource.dylib
             staged: reaper_datasource.dylib
     runs-on: ${{ matrix.os }}
+    env:
+      # C++ dependencies would otherwise target the runner SDK's macOS version.
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
